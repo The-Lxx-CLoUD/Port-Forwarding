@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>راهنمای کامل Cloudflare Tunnel — از صفر تا صد</title>
+<style>
+  @media print {
+    body { padding: 0 !important; }
+    .section { page-break-inside: avoid; }
+  }
+  body {
+    font-family: Tahoma, "Vazirmatn", "Segoe UI", sans-serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 30px;
+    line-height: 1.9;
+    color: #222;
+    background: #fff;
+  }
+  h1.main-title {
+    text-align: center;
+    color: #F38020;
+    font-size: 32px;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    text-align: center;
+    color: #555;
+    font-size: 15px;
+    margin-top: 0;
+    margin-bottom: 30px;
+  }
+  hr.top {
+    border: none;
+    border-top: 2px solid #F38020;
+    width: 60%;
+    margin: 0 auto 30px auto;
+  }
+  h2 {
+    color: #F38020;
+    border-right: 5px solid #F38020;
+    padding-right: 12px;
+    margin-top: 40px;
+    font-size: 20px;
+  }
+  h3 {
+    color: #C2570A;
+    margin-top: 22px;
+    font-size: 16px;
+  }
+  p { font-size: 15px; }
+  ul, ol { font-size: 15px; padding-right: 24px; padding-left: 0; }
+  li { margin-bottom: 6px; }
+  code {
+    direction: ltr;
+    unicode-bidi: embed;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    display: inline-block;
+  }
+  pre {
+    direction: ltr;
+    unicode-bidi: embed;
+    text-align: left;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0 18px 0;
+  }
+  .note {
+    background: #fff6e0;
+    border-right: 4px solid #e8b923;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .warn {
+    background: #fdecec;
+    border-right: 4px solid #d64545;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: #F38020;
+    color: white;
+    padding: 8px 10px;
+    text-align: right;
+  }
+  td {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+  }
+  tr:nth-child(even) td { background: #fff7f0; }
+  td code, th code { direction: ltr; }
+  .toc {
+    background: #fff8f2;
+    border: 1px solid #f5ddc4;
+    border-radius: 8px;
+    padding: 18px 24px;
+    margin-bottom: 30px;
+  }
+  .toc a { color: #C2570A; text-decoration: none; }
+  .footer {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid #ccc;
+    font-size: 12.5px;
+    color: #666;
+    direction: ltr;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="main-title">Cloudflare Tunnel</h1>
+<p class="subtitle">راهنمای کامل (cloudflared) — از صفر تا صد</p>
+<hr class="top">
+
+<div class="toc">
+  <strong>فهرست مطالب</strong>
+  <ol>
+    <li><a href="#s1">Cloudflare Tunnel چیست؟</a></li>
+    <li><a href="#s2">نصب cloudflared</a></li>
+    <li><a href="#s3">روش سریع (Quick Tunnel) — بدون نیاز به دامنه یا لاگین</a></li>
+    <li><a href="#s4">روش دائمی — لاگین و اتصال به اکانت Cloudflare</a></li>
+    <li><a href="#s5">ساخت یک تانل نام‌دار (Named Tunnel)</a></li>
+    <li><a href="#s6">اتصال دامنه به تانل (DNS Routing)</a></li>
+    <li><a href="#s7">فایل کانفیگ config.yml و قوانین Ingress</a></li>
+    <li><a href="#s8">اجرای تانل و اجرا به‌صورت سرویس دائمی</a></li>
+    <li><a href="#s9">تانل TCP خام (برای SSH یا سوکت اختصاصی)</a></li>
+    <li><a href="#s10">جدول دستورات پرکاربرد</a></li>
+    <li><a href="#s11">نکات امنیتی</a></li>
+    <li><a href="#s12">رفع اشکال رایج</a></li>
+  </ol>
+</div>
+
+<div class="section" id="s1">
+<h2>۱. Cloudflare Tunnel چیست؟</h2>
+<p>
+Cloudflare Tunnel (که ابزار خط‌فرمانش <code>cloudflared</code> نام داره) یه راه امن برای
+اتصال یه سرویس لوکال (سرور وب، API، سرور SSH، هر سرویس TCP دیگه) به اینترنت، از طریق
+شبکه‌ی Cloudflare‌ـه — بدون اینکه لازم باشه هیچ پورتی روی روتر یا فایروالت باز کنی.
+</p>
+<p>تفاوت اصلیش با چیزی مثل ngrok:</p>
+<ul>
+  <li>می‌تونی روی دامنه‌ی خودت (که DNSـش زیر Cloudflare‌ست) یه ساب‌دامین دائمی و رایگان بسازی</li>
+  <li>تانل به‌صورت یه اتصال «Named Tunnel» با شناسه‌ی ثابت تعریف میشه که هربار همون آدرس رو داره (برخلاف لینک‌های تصادفی)</li>
+  <li>کاملاً رایگانه، حتی برای استفاده‌ی دائمی و پروداکشن سبک</li>
+  <li>می‌تونه هم ترافیک HTTP/HTTPS و هم ترافیک TCP خام رو فوروارد کنه</li>
+</ul>
+<p>
+مثل ngrok، ایجنت <code>cloudflared</code> روی سیستم تو یه اتصال خروجی به سرورهای Cloudflare
+باز می‌کنه؛ ترافیک ورودی از دامنه‌ی تو، از طریق همون اتصال به سرویس لوکالت می‌رسه.
+</p>
+</div>
+
+<div class="section" id="s2">
+<h2>۲. نصب cloudflared</h2>
+
+<h3>ویندوز</h3>
+<p>نصب‌کننده رو از اینجا دانلود کن و اجرا کن:</p>
+<pre>https://github.com/cloudflare/cloudflared/releases/latest</pre>
+<p>یا با winget:</p>
+<pre>winget install --id Cloudflare.cloudflared</pre>
+
+<h3>مک (macOS)</h3>
+<pre>brew install cloudflared</pre>
+
+<h3>لینوکس (Debian/Ubuntu)</h3>
+<pre>sudo mkdir -p --mode=0755 /usr/share/keyrings
+curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg \
+  | sudo tee /usr/share/keyrings/cloudflare-main.gpg >/dev/null
+
+echo 'deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared any main' \
+  | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+sudo apt update && sudo apt install cloudflared</pre>
+
+<h3>لینوکس (باینری مستقیم — روی هر توزیعی)</h3>
+<pre>curl -L --output cloudflared \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+chmod +x cloudflared
+sudo mv cloudflared /usr/local/bin/</pre>
+
+<p>بررسی نصب:</p>
+<pre>cloudflared --version</pre>
+</div>
+
+<div class="section" id="s3">
+<h2>۳. روش سریع (Quick Tunnel) — بدون نیاز به دامنه یا لاگین</h2>
+<p>
+اگه فقط می‌خوای سریع یه سرویس لوکال رو موقتاً اکسپوز کنی و دامنه یا اکانت Cloudflare
+نداری، این ساده‌ترین راهه. فرض کن سرویست روی پورت 1080 اجراست:
+</p>
+<pre>cloudflared tunnel --url tcp://localhost:1080</pre>
+<p>یا برای یه سرور وب روی پورت 3000:</p>
+<pre>cloudflared tunnel --url http://localhost:3000</pre>
+<p>خروجی یه لینک تصادفی زیر دامنه‌ی <code>trycloudflare.com</code> بهت میده، مثلاً:</p>
+<pre>https://random-words-here.trycloudflare.com</pre>
+<div class="note">
+این حالت «Quick Tunnel» موقتیه — نیازی به لاگین یا اکانت نداره، ولی هر بار که
+اجراش کنی یه لینک تصادفی جدید می‌گیری و برای استفاده‌ی طولانی‌مدت یا پروداکشن
+مناسب نیست. برای آدرس دائمی، بخش‌های بعدی رو دنبال کن.
+</div>
+</div>
+
+<div class="section" id="s4">
+<h2>۴. روش دائمی — لاگین و اتصال به اکانت Cloudflare</h2>
+<p>برای ساختن یه تانل دائمی با آدرس ثابت، اول باید یه اکانت Cloudflare داشته باشی
+(رایگانه) و یه دامنه که DNSـش رو به Cloudflare منتقل کرده باشی.</p>
+<ol>
+  <li>اگه دامنه نداری یا نمی‌خوای دامنه وصل کنی، می‌تونی از همین بخش رد بشی و فقط از
+  Quick Tunnel (بخش ۳) استفاده کنی.</li>
+  <li>وارد شدن به اکانت از طریق ترمینال:</li>
+</ol>
+<pre>cloudflared tunnel login</pre>
+<p>
+این دستور یه لینک توی مرورگرت باز می‌کنه؛ باید لاگین کنی و یکی از دامنه‌های زیر
+اکانتت رو انتخاب کنی. بعد از تایید، یه فایل certificate (معمولاً
+<code>cert.pem</code>) توی <code>~/.cloudflared/</code> ذخیره میشه که هویتت رو
+برای ساخت تانل‌ها تایید می‌کنه.
+</p>
+</div>
+
+<div class="section" id="s5">
+<h2>۵. ساخت یک تانل نام‌دار (Named Tunnel)</h2>
+<p>بعد از لاگین، یه تانل با یه اسم دلخواه بساز:</p>
+<pre>cloudflared tunnel create mytunnel</pre>
+<p>
+این دستور یه UUID یکتا برای تانلت می‌سازه و یه فایل credentials
+(<code>&lt;tunnel-id&gt;.json</code>) توی <code>~/.cloudflared/</code> ذخیره می‌کنه.
+برای دیدن لیست تانل‌هایی که ساختی:
+</p>
+<pre>cloudflared tunnel list</pre>
+</div>
+
+<div class="section" id="s6">
+<h2>۶. اتصال دامنه به تانل (DNS Routing)</h2>
+<p>حالا یه ساب‌دامین از دامنه‌ات رو به این تانل وصل کن:</p>
+<pre>cloudflared tunnel route dns mytunnel proxy.yourdomain.com</pre>
+<p>
+این دستور خودکار یه رکورد CNAME توی DNS دامنه‌ات (که روی Cloudflare مدیریت میشه)
+می‌سازه که به تانلت اشاره می‌کنه. از این به بعد، <code>proxy.yourdomain.com</code>
+همیشه به همین تانل وصل میشه — دائمی و ثابت.
+</p>
+</div>
+
+<div class="section" id="s7">
+<h2>۷. فایل کانفیگ config.yml و قوانین Ingress</h2>
+<p>
+یه فایل کانفیگ بساز (معمولاً توی <code>~/.cloudflared/config.yml</code>) که مشخص می‌کنه
+هر ساب‌دامین به کدوم سرویس لوکال فوروارد بشه:
+</p>
+<pre>tunnel: mytunnel
+credentials-file: /home/user/.cloudflared/&lt;tunnel-id&gt;.json
+
+ingress:
+  - hostname: proxy.yourdomain.com
+    service: tcp://localhost:1080
+  - hostname: app.yourdomain.com
+    service: http://localhost:3000
+  - service: http_status:404</pre>
+<p>نکات مهم درباره‌ی ingress:</p>
+<ul>
+  <li>هر <code>hostname</code> باید قبلاً با دستور بخش ۶ به این تانل route شده باشه</li>
+  <li>می‌تونی چند سرویس مختلف (یکی TCP، یکی HTTP) رو زیر یه تانل واحد تعریف کنی</li>
+  <li>قانون آخر همیشه باید یه catch-all بدون hostname باشه (معمولاً
+  <code>http_status:404</code>) — این قانون الزامیه و باید آخرین آیتم لیست باشه</li>
+</ul>
+</div>
+
+<div class="section" id="s8">
+<h2>۸. اجرای تانل و اجرا به‌صورت سرویس دائمی</h2>
+<p>برای اجرای دستی تانل با فایل کانفیگی که ساختی:</p>
+<pre>cloudflared tunnel run mytunnel</pre>
+<p>
+اگه فایل کانفیگت جای دیگه‌ایه یا اسم دیگه‌ای داره، مسیرشو صریح بده:
+</p>
+<pre>cloudflared tunnel --config /path/to/config.yml run mytunnel</pre>
+
+<h3>اجرا به‌صورت سرویس سیستمی (تا با ری‌استارت سیستم هم روشن بمونه)</h3>
+<p>روی لینوکس (systemd):</p>
+<pre>sudo cloudflared service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared</pre>
+<p>روی ویندوز:</p>
+<pre>cloudflared service install</pre>
+<p>این دستورات cloudflared رو به‌عنوان یه سرویس پس‌زمینه نصب می‌کنن که خودکار با کانفیگ
+پیش‌فرضت اجرا میشه.</p>
+</div>
+
+<div class="section" id="s9">
+<h2>۹. تانل TCP خام (برای SSH یا سوکت اختصاصی)</h2>
+<p>
+همون‌طور که توی بخش ۷ دیدی، با گذاشتن <code>service: tcp://localhost:PORT</code>
+توی ingress، می‌تونی هر سرویس TCP دلخواه (نه فقط HTTP) رو فوروارد کنی — مثلاً همون
+اسکریپت کلاینت/سروری که پورت 1080 داشت، یا یه سرور SSH.
+</p>
+<p>سمت کلاینت (کسی که می‌خواد به این سرویس وصل بشه)، برای دسترسی از طریق Cloudflare
+باید از ابزار <code>cloudflared access</code> استفاده کنه که یه پروکسی TCP لوکال
+می‌سازه:</p>
+<pre>cloudflared access tcp --hostname proxy.yourdomain.com --url localhost:1080</pre>
+<p>
+این دستور یه پورت لوکال (1080) روی سیستم کلاینت باز می‌کنه که هر ترافیکش رو از
+طریق Cloudflare به سمت سرور اصلی تونل می‌کنه. یعنی توی اسکریپت کلاینتت کافیه به
+<code>localhost:1080</code> وصل بشی؛ خود <code>cloudflared access</code> بقیه‌ی
+مسیر رو مدیریت می‌کنه.
+</p>
+<div class="note">
+برای تانل‌های TCP خصوصی (غیر عمومی)، معمولاً از Cloudflare Access و پالیسی‌های
+احراز هویت هم استفاده میشه تا فقط کاربرهای مجاز بتونن وصل بشن — این بخش پیشرفته‌تره
+و توی داشبورد Cloudflare Zero Trust قابل تنظیمه.
+</div>
+</div>
+
+<div class="section" id="s10">
+<h2>۱۰. جدول دستورات پرکاربرد</h2>
+<table>
+<tr><th>دستور</th><th>کاربرد</th></tr>
+<tr><td><code>cloudflared tunnel --url http://localhost:3000</code></td><td>Quick Tunnel موقت بدون لاگین</td></tr>
+<tr><td><code>cloudflared tunnel login</code></td><td>لاگین به اکانت Cloudflare</td></tr>
+<tr><td><code>cloudflared tunnel create NAME</code></td><td>ساخت یه تانل دائمی جدید</td></tr>
+<tr><td><code>cloudflared tunnel list</code></td><td>لیست تانل‌های ساخته‌شده</td></tr>
+<tr><td><code>cloudflared tunnel route dns NAME hostname</code></td><td>وصل کردن یه ساب‌دامین به تانل</td></tr>
+<tr><td><code>cloudflared tunnel run NAME</code></td><td>اجرای تانل بر اساس فایل کانفیگ</td></tr>
+<tr><td><code>cloudflared tunnel delete NAME</code></td><td>حذف یه تانل</td></tr>
+<tr><td><code>cloudflared service install</code></td><td>نصب cloudflared به‌عنوان سرویس دائمی سیستم</td></tr>
+<tr><td><code>cloudflared access tcp --hostname H --url localhost:P</code></td><td>ساخت پروکسی TCP لوکال سمت کلاینت</td></tr>
+</table>
+</div>
+
+<div class="section" id="s11">
+<h2>۱۱. نکات امنیتی</h2>
+<ul>
+  <li>فایل‌های <code>cert.pem</code> و <code>&lt;tunnel-id&gt;.json</code> رو هیچوقت
+  جایی به اشتراک نذار — این‌ها هویت تانل و اکانتت رو تایید می‌کنن.</li>
+  <li>برای سرویس‌های حساس، از Cloudflare Access (احراز هویت قبل از رسیدن ترافیک به
+  سرویس لوکالت) استفاده کن، نه فقط یه تانل باز عمومی.</li>
+  <li>فقط پورت‌هایی که واقعاً لازمه رو توی ingress تعریف کن — سرویس‌های اضافه رو
+  اکسپوز نکن.</li>
+  <li>وقتی کارت تموم شد، تانل رو متوقف کن یا اگه سرویس دائمی نصب کردی، در صورت نیاز
+  <code>systemctl stop cloudflared</code> بزن.</li>
+</ul>
+<div class="warn">
+هر hostname که توی ingress تعریف و route می‌کنی، تا وقتی تانل روشنه، از هرجای
+اینترنت قابل دسترسیه (مگر اینکه پشتش Cloudflare Access یا پالیسی احراز هویت
+بذاری). سرویس‌های بدون پسورد یا با تنظیمات پیش‌فرض رو این‌طوری اکسپوز نکن.
+</div>
+</div>
+
+<div class="section" id="s12">
+<h2>۱۲. رفع اشکال رایج</h2>
+<table>
+<tr><th>مشکل</th><th>راه‌حل احتمالی</th></tr>
+<tr><td>«tunnel credentials file not found»</td><td>مسیر <code>credentials-file</code> توی config.yml رو با مسیر واقعی فایل json چک کن</td></tr>
+<tr><td>ساب‌دامین باز نمیشه / 1033 error</td><td>مطمئن شو <code>tunnel route dns</code> رو درست برای همون hostname زدی و DNS دامنه زیر Cloudflare هست</td></tr>
+<tr><td>«failed to login» موقع cloudflared tunnel login</td><td>مرورگر پیش‌فرضتو چک کن؛ اگه سرور بدون رابط گرافیکیه، لینک نمایش‌داده‌شده رو دستی توی مرورگر دیگه‌ای باز کن</td></tr>
+<tr><td>سرویس بعد از ری‌استارت سیستم بالا نمیاد</td><td>مطمئن شو <code>cloudflared service install</code> رو زده باشی و سرویس enable شده باشه</td></tr>
+<tr><td>Connection refused روی hostname</td><td>بررسی کن سرویس لوکالت واقعاً روی همون پورتی که در ingress نوشتی در حال اجراست</td></tr>
+</table>
+</div>
+
+<div class="footer">
+Official docs: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+</div>
+
+</body>
+</html>

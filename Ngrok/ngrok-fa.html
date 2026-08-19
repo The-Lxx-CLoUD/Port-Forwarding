@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>راهنمای کامل ngrok — از صفر تا صد</title>
+<style>
+  @media print {
+    body { padding: 0 !important; }
+    .section { page-break-inside: avoid; }
+  }
+  body {
+    font-family: Tahoma, "Vazirmatn", "Segoe UI", sans-serif;
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 40px 30px;
+    line-height: 1.9;
+    color: #222;
+    background: #fff;
+  }
+  h1.main-title {
+    text-align: center;
+    color: #0B3D91;
+    font-size: 32px;
+    margin-bottom: 4px;
+  }
+  p.subtitle {
+    text-align: center;
+    color: #555;
+    font-size: 15px;
+    margin-top: 0;
+    margin-bottom: 30px;
+  }
+  hr.top {
+    border: none;
+    border-top: 2px solid #0B3D91;
+    width: 60%;
+    margin: 0 auto 30px auto;
+  }
+  h2 {
+    color: #0B3D91;
+    border-right: 5px solid #0B3D91;
+    padding-right: 12px;
+    margin-top: 40px;
+    font-size: 20px;
+  }
+  h3 {
+    color: #1A5FB4;
+    margin-top: 22px;
+    font-size: 16px;
+  }
+  p { font-size: 15px; }
+  ul, ol { font-size: 15px; padding-right: 24px; padding-left: 0; }
+  li { margin-bottom: 6px; }
+  code {
+    direction: ltr;
+    unicode-bidi: embed;
+    background: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    display: inline-block;
+  }
+  pre {
+    direction: ltr;
+    unicode-bidi: embed;
+    text-align: left;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 12px 0 18px 0;
+  }
+  .note {
+    background: #fff6e0;
+    border-right: 4px solid #e8b923;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  .warn {
+    background: #fdecec;
+    border-right: 4px solid #d64545;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 14px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13.5px;
+  }
+  th {
+    background: #0B3D91;
+    color: white;
+    padding: 8px 10px;
+    text-align: right;
+  }
+  td {
+    padding: 8px 10px;
+    border: 1px solid #ddd;
+  }
+  tr:nth-child(even) td { background: #f2f5fa; }
+  td code, th code { direction: ltr; }
+  .toc {
+    background: #f7f9fc;
+    border: 1px solid #dde5f0;
+    border-radius: 8px;
+    padding: 18px 24px;
+    margin-bottom: 30px;
+  }
+  .toc a { color: #0B3D91; text-decoration: none; }
+  .footer {
+    margin-top: 40px;
+    padding-top: 14px;
+    border-top: 1px solid #ccc;
+    font-size: 12.5px;
+    color: #666;
+    direction: ltr;
+    text-align: left;
+  }
+</style>
+</head>
+<body>
+
+<h1 class="main-title">ngrok</h1>
+<p class="subtitle">راهنمای کامل — از صفر تا صد</p>
+<hr class="top">
+
+<div class="toc">
+  <strong>فهرست مطالب</strong>
+  <ol>
+    <li><a href="#s1">ngrok چیست؟</a></li>
+    <li><a href="#s2">نصب ngrok (ویندوز / مک / لینوکس)</a></li>
+    <li><a href="#s3">ساخت حساب کاربری و گرفتن Authtoken</a></li>
+    <li><a href="#s4">وصل کردن Authtoken</a></li>
+    <li><a href="#s5">استفاده پایه — اکسپوز کردن یک سرور HTTP</a></li>
+    <li><a href="#s6">اکسپوز کردن سرویس‌های TCP (مثل SSH یا سوکت اختصاصی)</a></li>
+    <li><a href="#s7">فایل کانفیگ ngrok.yml</a></li>
+    <li><a href="#s8">دامنه و آدرس ثابت (Static)</a></li>
+    <li><a href="#s9">جدول دستورات پرکاربرد</a></li>
+    <li><a href="#s10">نکات امنیتی</a></li>
+    <li><a href="#s11">رفع اشکال رایج</a></li>
+  </ol>
+</div>
+
+<div class="section" id="s1">
+<h2>۱. ngrok چیست؟</h2>
+<p>
+ngrok ابزاری‌ست که یک تونل امن از یک آدرس عمومی روی اینترنت (یک URL یا یک آدرس TCP)
+مستقیماً به یک سرویس که روی سیستم خودت اجرا شده وصل می‌کنه — حتی اگه سیستمت پشت NAT
+باشه، فایروال داشته باشه، یا اصلاً آی‌پی عمومی نداشته باشه. کاربردهای رایجش:
+</p>
+<ul>
+  <li>تست وبهوک‌ها (Stripe، GitHub، ربات تلگرام و...) روی یه سرور توسعه‌ی لوکال</li>
+  <li>اشتراک‌گذاری موقت یه اپ وب لوکال با یه مشتری یا همکار</li>
+  <li>اکسپوز کردن یه API لوکال برای تست اپ موبایل</li>
+  <li>فوروارد کردن سرویس‌های TCP مثل SSH، سرور بازی، یا سوکت اختصاصی</li>
+  <li>دسترسی سریع ریموت به یه دستگاه بدون نیاز به تنظیم port-forwarding روی روتر</li>
+</ul>
+<p>
+به‌طور خلاصه: ngrok یه ایجنت روی سیستمت اجرا می‌کنه. این ایجنت یه اتصال خروجی به سرورهای
+ابری ngrok باز می‌کنه. ترافیکی که به URL عمومی ngrok می‌رسه، از سرورهای ngrok عبور می‌کنه
+و از همون اتصال خروجی به پورت لوکال تو برمی‌گرده. چون اتصال از سمت تو (خروجی) شروع میشه،
+نیازی به باز کردن هیچ پورتی روی روتر یا فایروال نداری.
+</p>
+</div>
+
+<div class="section" id="s2">
+<h2>۲. نصب ngrok</h2>
+
+<h3>ویندوز</h3>
+<ol>
+  <li>به آدرس <code>https://ngrok.com/download</code> برو و نسخه‌ی ویندوز رو دانلود کن.</li>
+  <li>فایل زیپ رو باز کن — یه فایل تنها به اسم <code>ngrok.exe</code> بهت میده.</li>
+  <li>اونو یه‌جای مناسب مثل <code>C:\ngrok\ngrok.exe</code> بذار و اختیاری اون پوشه رو به PATH
+  اضافه کن تا از هر جای ترمینال بتونی <code>ngrok</code> رو صدا بزنی.</li>
+</ol>
+<p>یا با پکیج‌منیجر:</p>
+<pre>choco install ngrok
+# یا
+winget install ngrok.ngrok</pre>
+
+<h3>مک (macOS)</h3>
+<pre>brew install ngrok/ngrok/ngrok</pre>
+
+<h3>لینوکس (Debian/Ubuntu)</h3>
+<pre>curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc \
+  | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" \
+  | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update && sudo apt install ngrok</pre>
+
+<h3>لینوکس (باینری عمومی — روی هر توزیعی کار می‌کنه)</h3>
+<pre>curl -O https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+tar -xvzf ngrok-v3-stable-linux-amd64.tgz
+sudo mv ngrok /usr/local/bin/</pre>
+
+<p>برای اطمینان از نصب صحیح:</p>
+<pre>ngrok version</pre>
+</div>
+
+<div class="section" id="s3">
+<h2>۳. ساخت حساب کاربری و گرفتن Authtoken</h2>
+<ol>
+  <li>به <code>https://dashboard.ngrok.com/signup</code> برو و یه حساب رایگان بساز
+  (با ایمیل، گوگل یا گیت‌هاب).</li>
+  <li>بعد از لاگین، از منوی سمت چپ روی <b>«Your Authtoken»</b> کلیک کن (زیر بخش Getting Started).</li>
+  <li>توکنی که اونجا نشون داده میشه رو کپی کن — یه رشته‌ی طولانیه مخصوص حساب تو.
+  باهاش مثل یه پسورد رفتار کن؛ هرکی این توکن رو داشته باشه می‌تونه با حساب تو تونل باز کنه.</li>
+</ol>
+<p>
+پلن رایگان برای تقریباً همه‌ی چیزایی که تو این راهنما هست کافیه: تونل HTTP/TCP، یه
+دامنه‌ی ثابت، و چند تونل هم‌زمان.
+</p>
+</div>
+
+<div class="section" id="s4">
+<h2>۴. وصل کردن Authtoken</h2>
+<p>
+قبل از اینکه ngrok بتونه تونل باز کنه، باید بدونه تو کی هستی. این دستور رو یه بار
+اجرا کن (لوکال ذخیره میشه، فقط یه بار در هر سیستم لازمه):
+</p>
+<pre>ngrok config add-authtoken YOUR_TOKEN_HERE</pre>
+<p>این دستور توکن رو توی فایل کانفیگ ngrok می‌نویسه، که معمولاً اینجاست:</p>
+<ul>
+  <li>لینوکس/مک: <code>~/.config/ngrok/ngrok.yml</code></li>
+  <li>ویندوز: <code>%HOMEPATH%\AppData\Local\ngrok\ngrok.yml</code></li>
+</ul>
+</div>
+
+<div class="section" id="s5">
+<h2>۵. استفاده پایه — اکسپوز کردن یک سرور HTTP</h2>
+<p>
+فرض کن یه اپ وب لوکال روی پورت 3000 داری (ری‌اکت، فلسک، اکسپرس، هرچی). برای اینکه
+به اینترنت عمومی اکسپوزش کنی:
+</p>
+<pre>ngrok http 3000</pre>
+<p>ngrok یه داشبورد توی ترمینال نشون میده، چیزی شبیه این:</p>
+<pre>Session Status                online
+Account                       you@example.com (Plan: Free)
+Version                       3.x.x
+Region                        United States (us)
+Forwarding                    https://a1b2-203-0-113-5.ngrok-free.app -> http://localhost:3000
+
+Connections                   ttl     opn     rt1     rt5     p50     p90
+                               0       0       0.00    0.00    0.00    0.00</pre>
+<p>
+هر کسی اون آدرس <code>https://...ngrok-free.app</code> رو باز کنه، به پورت 3000 سیستم
+تو می‌رسه، فارغ از اینکه سیستمت فیزیکاً کجاست. با <code>Ctrl+C</code> تونل رو ببند —
+آدرس بلافاصله از کار می‌افته.
+</p>
+<h3>حالت‌های رایج دیگه:</h3>
+<pre>ngrok http 3000 --domain=myapp.ngrok-free.app   # استفاده از دامنه‌ی ثابت (بخش ۸)
+ngrok http https://localhost:8443                # فوروارد به یه سرور HTTPS لوکال
+ngrok http 3000 --basic-auth="user:password"      # اضافه کردن رمز پایه جلوی تونل</pre>
+</div>
+
+<div class="section" id="s6">
+<h2>۶. اکسپوز کردن سرویس‌های TCP (مثل SSH یا سوکت اختصاصی)</h2>
+<p>
+تونل HTTP فقط برای ترافیک وب کار می‌کنه. برای هر چیز دیگه‌ای — SSH، یه سرور سوکت
+پایتون اختصاصی (مثل همون اسکریپت کلاینت/سروری که قبلاً تنظیم کردی)، سرور ماینکرفت،
+دیتابیس و غیره — از تونل TCP استفاده کن:
+</p>
+<pre>ngrok tcp 22          # مثلاً اکسپوز کردن SSH لوکال
+ngrok tcp 1080        # اکسپوز کردن سرویس اختصاصی روی پورت ۱۰۸۰</pre>
+<p>خروجی اینجوری چیزیه:</p>
+<pre>Forwarding    tcp://4.tcp.ngrok.io:14837 -> localhost:1080</pre>
+<p>
+یعنی هر کسی (یا هر اسکریپت کلاینتی) که به <code>4.tcp.ngrok.io</code> روی پورت
+<code>14837</code> وصل بشه، به‌صورت شفاف به پورت 1080 سیستم تو فوروارد میشه. توی
+همون اسکریپت کلاینت/سروری که قبلاً تنظیم کردی، مقادیر رو اینجوری می‌ذاری:
+</p>
+<pre>RHOST = "4.tcp.ngrok.io"
+RPORT = 14837</pre>
+<div class="note">
+توجه: توی پلن رایگان، آدرس و پورت TCP هر بار که تونل رو استارت می‌کنی به‌صورت
+تصادفی تخصیص داده میشه (مگر اینکه یه آدرس TCP ثابت رزرو کنی — بخش ۸ رو ببین).
+</div>
+</div>
+
+<div class="section" id="s7">
+<h2>۷. فایل کانفیگ ngrok.yml</h2>
+<p>
+به‌جای تایپ کردن فلگ‌ها هر بار، می‌تونی تونل‌های نام‌گذاری‌شده رو توی یه فایل کانفیگ
+تعریف کنی و چندتاشو با هم استارت بزنی. مسیر فایل کانفیگت رو با این دستور پیدا کن:
+</p>
+<pre>ngrok config check</pre>
+<p>نمونه‌ی یه فایل کانفیگ:</p>
+<pre>version: "2"
+authtoken: YOUR_TOKEN_HERE
+tunnels:
+  webapp:
+    proto: http
+    addr: 3000
+  ssh:
+    proto: tcp
+    addr: 22
+  mysocket:
+    proto: tcp
+    addr: 1080</pre>
+<p>استارت زدن همه‌ی تونل‌های تعریف‌شده در فایل، یهجا:</p>
+<pre>ngrok start --all</pre>
+<p>یا استارت زدن فقط یه تونل خاص:</p>
+<pre>ngrok start webapp</pre>
+</div>
+
+<div class="section" id="s8">
+<h2>۸. دامنه و آدرس ثابت (Static)</h2>
+<p>
+به‌طور پیش‌فرض، هر بار که ngrok رو استارت می‌کنی یه URL/آدرس تصادفیِ جدید می‌گیری.
+اگه بخوای یه آدرس ثابت داشته باشی که هیچوقت عوض نشه:
+</p>
+<h3>دامنه‌ی ثابت HTTP (پلن رایگان یکی بهت میده):</h3>
+<ol>
+  <li>توی داشبورد به بخش <b>Domains</b> برو و روی <b>New Domain</b> کلیک کن تا یه
+  دامنه‌ی رایگان <code>xxxx.ngrok-free.app</code> رزرو کنی (یا توی پلن پولی دامنه‌ی
+  خودتو وصل کن).</li>
+  <li>موقع استارت زدن تونل ازش استفاده کن:</li>
+</ol>
+<pre>ngrok http 3000 --domain=your-name.ngrok-free.app</pre>
+<h3>آدرس ثابت TCP (پلن‌های پولی):</h3>
+<pre>ngrok tcp 1080 --remote-addr=1.tcp.ngrok.io:12345</pre>
+</div>
+
+<div class="section" id="s9">
+<h2>۹. جدول دستورات پرکاربرد</h2>
+<table>
+<tr><th>دستور</th><th>کاربرد</th></tr>
+<tr><td><code>ngrok http 3000</code></td><td>اکسپوز پورت 3000 لوکال روی HTTPS</td></tr>
+<tr><td><code>ngrok tcp 1080</code></td><td>اکسپوز پورت 1080 لوکال به‌صورت تونل TCP خام</td></tr>
+<tr><td><code>ngrok config add-authtoken TOKEN</code></td><td>ذخیره‌ی authtoken حساب به‌صورت لوکال</td></tr>
+<tr><td><code>ngrok config check</code></td><td>نمایش مسیر فایل کانفیگ و بررسی صحتش</td></tr>
+<tr><td><code>ngrok start --all</code></td><td>استارت همه‌ی تونل‌های تعریف‌شده در ngrok.yml</td></tr>
+<tr><td><code>ngrok start NAME</code></td><td>استارت یه تونل خاص از ngrok.yml</td></tr>
+<tr><td><code>ngrok http 3000 --basic-auth="u:p"</code></td><td>رمزدار کردن تونل HTTP</td></tr>
+<tr><td><code>ngrok http 3000 --domain=X</code></td><td>استفاده از یه دامنه‌ی ثابت رزرو‌شده</td></tr>
+<tr><td><code>ngrok diagnose</code></td><td>اجرای تست‌های اتصال و عیب‌یابی</td></tr>
+<tr><td><code>ngrok version</code></td><td>نمایش نسخه‌ی نصب‌شده</td></tr>
+</table>
+</div>
+
+<div class="section" id="s10">
+<h2>۱۰. نکات امنیتی</h2>
+<ul>
+  <li>authtoken خودتو هیچوقت جایی به‌صورت عمومی به اشتراک نذار (مثلاً توی یه ریپوی
+  گیت‌هاب یا اسکرین‌شات) — چون کنترل کامل حساب ngrok تو رو میده.</li>
+  <li>برای هر تونل HTTP که چیز حساسی رو اکسپوز می‌کنه، از <code>--basic-auth</code>
+  استفاده کن، چون URL عمومی قابل حدس زدن و اسکن‌شدنه.</li>
+  <li>فقط دقیقاً همون پورتی رو فوروارد کن که لازم داری — کل شبکه‌ی سیستمت رو تونل نکن.</li>
+  <li>وقتی کارت با تست تموم شد، تونل رو ببند (<code>Ctrl+C</code>)؛ روشن گذاشتنش یعنی
+  اون سرویس همچنان به اینترنت اکسپوز باقی می‌مونه.</li>
+  <li>برای هر چیز طولانی‌مدت یا مربوط به پروداکشن، به‌جای اینکه یه تونل شخصی ngrok
+  دائماً باز بذاری، از یه ریورس‌پروکسی درست‌وحسابی با TLS و قوانین فایروال استفاده کن.</li>
+</ul>
+<div class="warn">
+یه تونل عمومی — چه HTTP چه TCP — هر چیزی که فوروارد می‌کنی رو در دسترس <b>هر کسی</b>
+روی اینترنت قرار میده، نه فقط افرادی که لینکشو بهشون میدی. سرویسی با پسورد پیش‌فرض یا
+ضعیف رو اکسپوز نکن.
+</div>
+</div>
+
+<div class="section" id="s11">
+<h2>۱۱. رفع اشکال رایج</h2>
+<table>
+<tr><th>مشکل</th><th>راه‌حل احتمالی</th></tr>
+<tr><td>پیام «authentication failed»</td><td>دوباره <code>ngrok config add-authtoken</code> رو با یه توکن تازه از داشبورد اجرا کن</td></tr>
+<tr><td>«tunnel not found» بعد از ریستارت</td><td>توی پلن رایگان آدرس‌های تصادفی هر ریستارت عوض میشن — یه دامنه‌ی ثابت رزرو کن (بخش ۸)</td></tr>
+<tr><td>Connection refused روی آدرس ngrok</td><td>مطمئن شو سرویس لوکالت واقعاً روی همون پورتی که به ngrok گفتی اجرا شده</td></tr>
+<tr><td>تونل کند / تاخیر بالا</td><td>پلن رایگان از ریجن‌های مشترک استفاده می‌کنه؛ امتحان کن <code>--region=REGION</code> نزدیک‌تر به خودت</td></tr>
+<tr><td>فایروال ویندوز جلوی ngrok رو می‌گیره</td><td>ngrok.exe رو توی Windows Defender Firewall مجاز کن</td></tr>
+</table>
+</div>
+
+<div class="footer">
+Official docs: https://ngrok.com/docs — Dashboard: https://dashboard.ngrok.com
+</div>
+
+</body>
+</html>
