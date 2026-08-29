@@ -15,7 +15,3 @@ With a little curiosity,
 .
 .
 .
-.
-.
-.
-.
