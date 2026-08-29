@@ -10,8 +10,3 @@ I have explained port forwarding in general terms here.
 With a little curiosity,
  you can learn how to use port forwarding for hacking and the like.
 ```
-.
-.
-.
-.
-.
